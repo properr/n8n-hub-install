@@ -1,11 +1,10 @@
-
 # Базовый образ n8n (на Alpine)
 FROM n8nio/n8n:latest
 
 # Переключаемся на root
 USER root
 
-# Установка зависимостей через apk (Alpine)
+# Установка системных пакетов через apk
 RUN apk add --no-cache \
   bash \
   curl \
@@ -16,9 +15,10 @@ RUN apk add --no-cache \
   python3 \
   py3-pip \
   libffi-dev \
-  openssl-dev
+  openssl-dev \
+  yt-dlp
 
-# Установка pip-библиотек по одной (с обработкой ошибок)
+# Установка pip-библиотек
 RUN for lib in \
     openai \
     numpy \
@@ -29,7 +29,7 @@ RUN for lib in \
   echo "📦 pip install $lib" && pip install "$lib" || echo "⚠️ pip: $lib не встал, продолжаем..."; \
 done
 
-# Установка npm-библиотек по одной (с обработкой ошибок)
+# Установка npm-библиотек
 RUN for pkg in \
     axios \
     node-fetch \
@@ -49,14 +49,12 @@ RUN for pkg in \
     openai \
     @tensorflow/tfjs-node \
     langchain \
-    langchain-openai \
     node-telegram-bot-api \
     discord.js \
     vk-io \
     whatsapp-web.js \
     fluent-ffmpeg \
     ffmpeg-static \
-    yt-dlp-exec \
     google-tts-api \
     @vitalets/google-translate-token \
     node-wav \
@@ -71,9 +69,10 @@ RUN for pkg in \
     node-downloader-helper \
     adm-zip \
     archiver \
+    oauth-1.0a \
     ; do \
   echo "🔧 Устанавливаем $pkg..." && npm install -g "$pkg" || echo "⚠️ Не удалось установить $pkg, продолжаем..."; \
 done
 
-# Возвращаем пользователя
+# Возвращаемся к node-пользователю
 USER node

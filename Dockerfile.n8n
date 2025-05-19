@@ -74,7 +74,7 @@ RUN for pkg in \
 done
 
 # Установка oauth-1.0a локально, чтобы было доступно в Code-нодах
-RUN npm install /usr/local/lib/node_modules/oauth-1.0a --prefix /usr/local/lib/node_modules/n8n
+RUN npm install oauth-1.0a
 
 # Возвращаемся к node-пользователю
 USER node

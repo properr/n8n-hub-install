@@ -29,7 +29,7 @@ RUN for lib in \
   echo "📦 pip install $lib" && pip install "$lib" || echo "⚠️ pip: $lib не встал, продолжаем..."; \
 done
 
-# Установка npm-библиотек
+# Установка npm-библиотек глобально
 RUN for pkg in \
     axios \
     node-fetch \
@@ -69,10 +69,12 @@ RUN for pkg in \
     node-downloader-helper \
     adm-zip \
     archiver \
-    oauth-1.0a \
     ; do \
   echo "🔧 Устанавливаем $pkg..." && npm install -g "$pkg" || echo "⚠️ Не удалось установить $pkg, продолжаем..."; \
 done
+
+# Установка oauth-1.0a локально, чтобы было доступно в Code-нодах
+RUN npm install /usr/local/lib/node_modules/oauth-1.0a --prefix /usr/local/lib/node_modules/n8n
 
 # Возвращаемся к node-пользователю
 USER node

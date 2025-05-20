@@ -15,7 +15,8 @@ ENV_FILE="$BASE_DIR/.env"
 EXPORT_DIR="$BASE_DIR/export_temp"
 EXPORT_CREDS="$BASE_DIR/n8n_credentials.json"
 
-# Очистим старую временную папку, если есть
+# === Очистка предыдущего архива ===
+rm -f "$BACKUP_DIR"/n8n-backup-*.zip
 rm -rf "$EXPORT_DIR"
 mkdir -p "$EXPORT_DIR"
 
@@ -31,7 +32,7 @@ send_telegram() {
     -d text="$1"
 }
 
-# === Экспорт Workflows (в отдельные файлы с флагом --all) ===
+# === Экспорт Workflows (по отдельным файлам) ===
 docker exec n8n-app n8n export:workflow --all --separate --output=/tmp/export_dir || true
 docker cp n8n-app:/tmp/export_dir "$EXPORT_DIR"
 
@@ -63,5 +64,5 @@ curl -s -F "document=@$ARCHIVE_PATH" \
   "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$USER_ID&caption=📦 Бэкап n8n: $NOW ($WF_COUNT воркфлоу)" \
   && echo "✅ Архив отправлен в Telegram" >> "$BACKUP_DIR/debug.log"
 
-# === Очистка временных файлов ===
-rm -rf "$EXPORT_DIR" "$EXPORT_CREDS" "$ARCHIVE_PATH"
+# === Временные файлы удалим, но архив оставим до следующего запуска ===
+rm -rf "$EXPORT_DIR" "$EXPORT_CREDS"

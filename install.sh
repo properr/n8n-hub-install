@@ -67,8 +67,8 @@ chmod 600 .env bot/.env
 
 ### 4.1 Создание нужных директорий и логов
 mkdir -p logs backups
-touch backup.log
-chown -R 1000:1000 logs backups backup.log
+touch logs/backup.log
+chown -R 1000:1000 logs backups
 chmod -R 755 logs backups
 
 ### 5. Сборка кастомного образа n8n
@@ -78,8 +78,9 @@ docker build -f Dockerfile.n8n -t n8n-custom:latest .
 docker compose up -d
 
 ### 7. Настройка cron
+echo "🔧 Устанавливаем cron-задачу на 02:00 каждый день"
 chmod +x ./backup_n8n.sh
-(crontab -l 2>/dev/null; echo "0 2 * * * /opt/n8n-install/backup_n8n.sh >> /opt/n8n-install/backup.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 2 * * * /bin/bash /opt/n8n-install/backup_n8n.sh >> /opt/n8n-install/logs/backup.log 2>&1") | crontab -
 
 ### 8. Уведомление в Telegram
 curl -s -X POST https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage \

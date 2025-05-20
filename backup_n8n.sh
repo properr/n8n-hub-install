@@ -34,7 +34,12 @@ echo "🔧 backup_n8n.sh запущен: $NOW" >> "$BACKUP_DIR/debug.log"
 docker exec n8n-app n8n export:workflow --all --output=/tmp/export.json || true
 
 if docker cp n8n-app:/tmp/export.json "$EXPORT_WORKFLOWS"; then
-  echo "✅ workflows экспортированы"
+  WF_COUNT=$(jq length "$EXPORT_WORKFLOWS")
+  echo "✅ workflows экспортированы ($WF_COUNT шт.)"
+
+  if [ "$WF_COUNT" -lt 10 ]; then
+    send_telegram "⚠️ Экспортировано всего $WF_COUNT воркфлоу. Проверь вручную, возможно ошибка!"
+  fi
 else
   echo "⚠️ Внимание: workflow не найдены"
   send_telegram "⚠️ Внимание: в n8n нет ни одного workflow. Бэкап отменён."
@@ -57,7 +62,7 @@ zip -j "$ARCHIVE_PATH" "$EXPORT_WORKFLOWS" "$EXPORT_CREDS"
 
 # === Отправка архива в Telegram ===
 curl -s -F "document=@$ARCHIVE_PATH" \
-  "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$USER_ID&caption=Backup%20n8n%20(%20$NOW%20)" \
+  "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$USER_ID&caption=📦 Бэкап n8n: $NOW ($WF_COUNT воркфлоу)" \
   && echo "✅ Архив отправлен в Telegram" >> "$BACKUP_DIR/debug.log"
 
 # === Очистка временных файлов ===

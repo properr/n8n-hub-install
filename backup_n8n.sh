@@ -60,9 +60,15 @@ zip -j "$ARCHIVE_PATH" "$EXPORT_CREDS"
 zip -j "$ARCHIVE_PATH" "$EXPORT_DIR/export_dir"/*.json
 
 # === Отправка архива в Telegram ===
-curl -f -v -F "document=@$ARCHIVE_PATH" \
-  "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$USER_ID&caption=Backup n8n: $NOW ($WF_COUNT workflows)" \
-  && echo "✅ Архив отправлен в Telegram" >> "$BACKUP_DIR/debug.log"
+SEND_RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null -F "document=@$ARCHIVE_PATH" \
+  "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$USER_ID&caption=Backup n8n: $NOW ($WF_COUNT workflows)")
 
-# === Временные файлы удалим, но архив оставим до следующего запуска ===
+if [ "$SEND_RESPONSE" = "200" ]; then
+  echo "✅ Архив отправлен в Telegram" >> "$BACKUP_DIR/debug.log"
+else
+  echo "❌ Ошибка отправки в Telegram, код ответа: $SEND_RESPONSE" >> "$BACKUP_DIR/debug.log"
+  send_telegram "❌ Ошибка: архив бэкапа НЕ доставлен в Telegram. Код ответа: $SEND_RESPONSE"
+fi
+
+# === Удаляем только временные файлы, архив сохраняем до следующего запуска ===
 rm -rf "$EXPORT_DIR" "$EXPORT_CREDS"

@@ -31,8 +31,8 @@ send_telegram() {
     -d text="$1"
 }
 
-# === Экспорт Workflows (по отдельным файлам) ===
-docker exec n8n-app n8n export:workflow --separate --output=/tmp/export_dir || true
+# === Экспорт Workflows (в отдельные файлы с флагом --all) ===
+docker exec n8n-app n8n export:workflow --all --separate --output=/tmp/export_dir || true
 docker cp n8n-app:/tmp/export_dir "$EXPORT_DIR"
 
 WF_COUNT=$(ls -1 "$EXPORT_DIR/export_dir"/*.json 2>/dev/null | wc -l)

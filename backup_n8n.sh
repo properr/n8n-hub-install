@@ -12,8 +12,12 @@ ARCHIVE_NAME="n8n-backup-$NOW.zip"
 ARCHIVE_PATH="$BACKUP_DIR/$ARCHIVE_NAME"
 BASE_DIR="/opt/n8n-install"
 ENV_FILE="$BASE_DIR/.env"
-EXPORT_WORKFLOWS="$BASE_DIR/n8n_workflows.json"
+EXPORT_DIR="$BASE_DIR/export_temp"
 EXPORT_CREDS="$BASE_DIR/n8n_credentials.json"
+
+# Очистим старую временную папку, если есть
+rm -rf "$EXPORT_DIR"
+mkdir -p "$EXPORT_DIR"
 
 # === Загрузка переменных окружения ===
 . "$ENV_FILE"
@@ -27,24 +31,17 @@ send_telegram() {
     -d text="$1"
 }
 
-# === Отладка запуска ===
-echo "🔧 backup_n8n.sh запущен: $NOW" >> "$BACKUP_DIR/debug.log"
+# === Экспорт Workflows (по отдельным файлам) ===
+docker exec n8n-app n8n export:workflow --separate --output=/tmp/export_dir || true
+docker cp n8n-app:/tmp/export_dir "$EXPORT_DIR"
 
-# === Экспорт Workflows ===
-docker exec n8n-app n8n export:workflow --all --output=/tmp/export.json || true
-
-if docker cp n8n-app:/tmp/export.json "$EXPORT_WORKFLOWS"; then
-  WF_COUNT=$(jq length "$EXPORT_WORKFLOWS")
-  echo "✅ workflows экспортированы ($WF_COUNT шт.)"
-
-  if [ "$WF_COUNT" -lt 10 ]; then
-    send_telegram "⚠️ Экспортировано всего $WF_COUNT воркфлоу. Проверь вручную, возможно ошибка!"
-  fi
-else
-  echo "⚠️ Внимание: workflow не найдены"
+WF_COUNT=$(ls -1 "$EXPORT_DIR/export_dir"/*.json 2>/dev/null | wc -l)
+if [ "$WF_COUNT" -eq 0 ]; then
+  echo "⚠️ Внимание: воркфлоу не найдены"
   send_telegram "⚠️ Внимание: в n8n нет ни одного workflow. Бэкап отменён."
   exit 1
 fi
+echo "✅ Экспортировано $WF_COUNT воркфлоу"
 
 # === Экспорт Credentials ===
 docker exec n8n-app n8n export:credentials --all --output=/tmp/creds.json || true
@@ -57,8 +54,9 @@ else
   send_telegram "⚠️ Внимание: в n8n нет ни одного credentials. Бэкап выполнен только для workflows."
 fi
 
-# === Создание архива без пароля ===
-zip -j "$ARCHIVE_PATH" "$EXPORT_WORKFLOWS" "$EXPORT_CREDS"
+# === Создание архива (воркфлоу + credentials) ===
+zip -j "$ARCHIVE_PATH" "$EXPORT_CREDS"
+zip -j "$ARCHIVE_PATH" "$EXPORT_DIR/export_dir"/*.json
 
 # === Отправка архива в Telegram ===
 curl -s -F "document=@$ARCHIVE_PATH" \
@@ -66,4 +64,4 @@ curl -s -F "document=@$ARCHIVE_PATH" \
   && echo "✅ Архив отправлен в Telegram" >> "$BACKUP_DIR/debug.log"
 
 # === Очистка временных файлов ===
-rm -f "$EXPORT_WORKFLOWS" "$EXPORT_CREDS" "$ARCHIVE_PATH"
+rm -rf "$EXPORT_DIR" "$EXPORT_CREDS" "$ARCHIVE_PATH"

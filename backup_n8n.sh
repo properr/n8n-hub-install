@@ -60,8 +60,8 @@ zip -j "$ARCHIVE_PATH" "$EXPORT_CREDS"
 zip -j "$ARCHIVE_PATH" "$EXPORT_DIR/export_dir"/*.json
 
 # === Отправка архива в Telegram ===
-curl -s -F "document=@$ARCHIVE_PATH" \
-  "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$USER_ID&caption=Бэкап n8n: $NOW ($WF_COUNT воркфлоу)" \
+curl -f -v -F "document=@$ARCHIVE_PATH" \
+  "https://api.telegram.org/bot$BOT_TOKEN/sendDocument?chat_id=$USER_ID&caption=Backup n8n: $NOW ($WF_COUNT workflows)" \
   && echo "✅ Архив отправлен в Telegram" >> "$BACKUP_DIR/debug.log"
 
 # === Временные файлы удалим, но архив оставим до следующего запуска ===

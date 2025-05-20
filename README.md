@@ -104,6 +104,13 @@ docker compose up -d n8n
 
 РУЧНОЕ ОБНОВЛЕНИЕ ЧЕРЕЗ ТЕРМИНАЛ
 
+Сначала вводим команду
+```bash
+cd /opt/n8n-install
+```
+
+Затем
+
 ```bash
 docker compose build n8n
 docker compose up -d n8n

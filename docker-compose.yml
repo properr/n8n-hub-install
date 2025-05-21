@@ -9,6 +9,9 @@ services:
     restart: always
     ports:
       - "5678:5678"
+    mem_limit: 2048m         # 🔒 максимум 2ГБ ОЗУ
+    mem_reservation: 1024m   # 🔹 желательно минимум 1ГБ
+    cpus: "1.5"              # 🔒 максимум 1.5 CPU
     environment:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=n8n-postgres
@@ -41,7 +44,6 @@ services:
       - "traefik.http.middlewares.n8n-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.middlewares.n8n-headers.headers.customrequestheaders.X-Forwarded-For=true"
       - "traefik.http.routers.n8n.middlewares=n8n-headers"
-
   n8n-postgres:
     image: postgres:15-alpine
     container_name: n8n-postgres

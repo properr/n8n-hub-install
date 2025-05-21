@@ -30,6 +30,8 @@ services:
       - NODE_ENV=production
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
       - N8N_RUNNERS_ENABLED=true
+      - N8N_DEFAULT_BINARY_DATA_MODE=${N8N_DEFAULT_BINARY_DATA_MODE}
+      - N8N_BINARY_DATA_MODE=${N8N_BINARY_DATA_MODE}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./data:/data

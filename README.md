@@ -128,3 +128,78 @@ docker compose up -d n8n
 ---
 
 **✅ Готово! Установка, обновление и резервное копирование теперь полностью автоматизированы.**
+
+## ОЧИСТКА СЕРВЕРА ПОСЛЕ ОБНОВЛЕНИЯ N8N
+
+
+1. Очистка APT-кэша и ненужных пакетов
+sudo apt-get clean
+sudo apt-get autoremove --purge -y
+
+​
+Проверка:
+df -h | sed -n '1,5p'
+
+​
+2. Очистка системных журналов (systemd)
+sudo journalctl --vacuum-size=100M
+sudo journalctl --vacuum-time=7d
+
+​
+Проверка:
+sudo journalctl --disk-usage
+
+​
+3. Очистка логов в /var/log
+sudo find /var/log -type f -name "*.gz" -delete
+sudo truncate -s 0 /var/log/*.log
+sudo truncate -s 0 /var/log/**/*.log
+
+​
+4. Очистка логов Docker-контейнеров
+sudo find /var/lib/docker/containers/ -type f -name "*-json.log" -exec truncate -s 0 {} \;
+sudo systemctl restart docker
+
+​
+5. Основная Docker-чистка
+# Убираем образы без тега (<none>)
+docker image prune -f
+
+# Очищаем кэш сборок
+docker builder prune -f
+
+# Удаляем все образы, не используемые запущенными контейнерами (включая старые n8n)
+docker image prune -a -f
+
+# Удаляем остановленные контейнеры
+docker container prune -f
+
+# (Опционально) Удаляем «висячие» тома
+docker volume prune -f
+
+​
+Проверка:
+docker system df
+df -h
+
+​
+6. (Опционально) Уменьшение swap-файла до 1 GiB
+sudo swapoff /swapfile
+sudo dd if=/dev/zero of=/swapfile bs=1M count=1024
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+​
+Проверка:
+free -h
+df -h
+
+​
+После выполнения всех шагов у вас будет:
+Сброшен APT-кэш и ненужные пакеты
+Подчищены systemd-журналы и /var/log
+Обнулены логи Docker-контейнеров
+Удалены все неиспользуемые образы, контейнеры и кеш
+(По желанию) Сокращён объём swap
+Скопируйте этот список в Notion и двигайтесь пункт за пунктом, проверяя результаты каждого блока.

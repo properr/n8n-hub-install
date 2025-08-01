@@ -100,7 +100,7 @@ bot.onText(/\/backups/, (msg) => {
 bot.onText(/\/update/, (msg) => {
   if (!isAuthorized(msg)) return;
 
-  send('⏳ Сначала делаю резервную копию перед обновлением...');
+  send('⏳ Шаг 1: выполняю резервную копию перед обновлением...');
 
   const backupScriptPath = path.resolve('/opt/n8n-install/backup_n8n.sh');
 
@@ -110,25 +110,33 @@ bot.onText(/\/update/, (msg) => {
       return;
     }
 
-    send('✅ Бэкап завершён. Начинаю обновление n8n...');
+    send('✅ Бэкап завершён. Перехожу к обновлению n8n...');
 
     try {
+      send('⏳ Шаг 2: проверяю актуальную версию n8n...');
       const latest = execSync('npm view n8n version').toString().trim();
       const current = execSync('docker exec n8n-app n8n -v').toString().trim();
 
       if (latest === current) {
-        send(`✅ У вас уже последняя версия n8n (${current})`);
-      } else {
-        send(`⏬ Обновляю n8n с ${current} до ${latest}...`);
-        execSync('docker pull n8nio/n8n');
-        execSync('docker-compose stop n8n');
-        execSync('docker-compose rm -f n8n');
-        execSync('docker-compose up -d --no-deps --build n8n');
-        send(`✅ n8n обновлён до версии ${latest}`);
+        send(`✅ У вас уже последняя версия n8n (${current}). Обновление не требуется.`);
+        return;
       }
+
+      send(`⏳ Шаг 3: загружаю новую версию n8n (${latest})...`);
+      execSync('docker pull n8nio/n8n');
+
+      send('⏳ Шаг 4: останавливаю текущий контейнер n8n...');
+      execSync('docker-compose stop n8n');
+
+      send('⏳ Шаг 5: удаляю старый контейнер n8n...');
+      execSync('docker-compose rm -f n8n');
+
+      send('⏳ Шаг 6: запускаю новый контейнер n8n...');
+      execSync('docker-compose up -d --no-deps --build n8n');
+
+      send(`✅ Обновление завершено! n8n обновлён до версии ${latest}`);
     } catch (err) {
-      send('❌ Обновление завершилось с ошибкой');
+      send(`❌ Обновление завершилось с ошибкой: ${err.message}`);
     }
   });
 });
-

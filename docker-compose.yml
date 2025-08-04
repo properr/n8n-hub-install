@@ -102,6 +102,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./backup_n8n.sh:/opt/n8n-install/backup_n8n.sh
       - ./backups:/opt/n8n-install/backups
+      - ./update_n8n.sh:/update_n8n.sh
       - ./.env:/opt/n8n-install/.env
     labels:
       - "traefik.enable=false"

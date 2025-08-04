@@ -31,7 +31,7 @@ echo "🆕 Доступна новая версия: $LATEST (у вас: $CURREN
 echo "📦 Шаг 3: останавливаю и обновляю n8n..."
 docker compose stop n8n
 docker compose rm -f n8n
-docker compose pull n8n
+docker compose build --no-cache n8n
 docker compose up -d n8n
 
 # === Шаг 4. Проверка запуска после обновления ===

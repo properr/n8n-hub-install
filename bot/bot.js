@@ -100,45 +100,17 @@ bot.onText(/\/backups/, (msg) => {
 bot.onText(/\/update/, (msg) => {
   if (!isAuthorized(msg)) return;
 
-  send('⏳ Шаг 1: выполняю резервную копию перед обновлением...');
+  send('🔄 Начинаю обновление n8n...');
 
-  const backupScriptPath = path.resolve('/opt/n8n-install/backup_n8n.sh');
-
-  exec(`/bin/bash ${backupScriptPath}`, (error, stdout, stderr) => {
+  const { exec } = require('child_process');
+  exec('/bin/bash /opt/n8n-install/update_n8n.sh', (error, stdout, stderr) => {
     if (error) {
-      send(`❌ Ошибка при запуске backup:\n\`\`\`\n${error.message}\n\`\`\`\nОбновление прервано.`);
+      send(`❌ Обновление завершилось с ошибкой:\n${error.message}`);
       return;
     }
-
-    send('✅ Бэкап завершён. Перехожу к обновлению n8n...');
-
-    try {
-      send('⏳ Шаг 2: проверяю актуальную версию n8n...');
-      const latest = execSync('npm view n8n version').toString().trim();
-      const current = execSync('docker exec n8n-app n8n -v').toString().trim();
-
-      // Если версия уже актуальная — выходим
-      if (latest === current) {
-        send(`✅ У вас уже последняя версия n8n (${current}). Обновление не требуется.`);
-        return; // <<< Завершаем обновление сразу
-      }
-
-      send(`⏬ Шаг 3: загружаю новую версию n8n (${latest})...`);
-      execSync('docker pull n8nio/n8n');
-
-      send('⏹ Шаг 4: останавливаю текущий контейнер n8n...');
-      execSync('docker compose stop n8n');
-
-      send('🗑 Шаг 5: удаляю старый контейнер n8n...');
-      execSync('docker compose rm -f n8n');
-
-      send('🚀 Шаг 6: запускаю новый контейнер n8n...');
-      execSync('docker compose up -d --no-deps --build n8n');
-
-      send(`✅ n8n обновлён до версии ${latest}`);
-    } catch (err) {
-      send(`❌ Обновление завершилось с ошибкой: ${err.message}`);
+    if (stderr) {
+      send(`⚠️ Предупреждение:\n${stderr}`);
     }
+    send(`✅ Обновление завершено:\n${stdout}`);
   });
 });
-

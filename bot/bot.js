@@ -127,13 +127,13 @@ bot.onText(/\/update/, (msg) => {
       execSync('docker pull n8nio/n8n');
 
       send('⏹ Шаг 4: останавливаю текущий контейнер n8n...');
-      execSync('docker-compose stop n8n');
+      execSync('docker compose stop n8n');
 
       send('🗑 Шаг 5: удаляю старый контейнер n8n...');
-      execSync('docker-compose rm -f n8n');
+      execSync('docker compose rm -f n8n');
 
       send('🚀 Шаг 6: запускаю новый контейнер n8n...');
-      execSync('docker-compose up -d --no-deps --build n8n');
+      execSync('docker compose up -d --no-deps --build n8n');
 
       send(`✅ n8n обновлён до версии ${latest}`);
     } catch (err) {

@@ -24,7 +24,7 @@ function notify() {
 }
 
 # === Перехват ошибок ===
-trap 'notify "❌ *ОШИБКА во время обновления!* См. лог в `/opt/n8n-install/logs/update.log`"' ERR
+trap 'notify "❌ *ОШИБКА во время обновления!* См. лог в \`/opt/n8n-install/logs/update.log\`"' ERR
 
 # === Начало ===
 exec > >(tee -a "$LOG") 2>&1
@@ -48,30 +48,30 @@ LATEST=$(curl -s https://api.github.com/repos/n8n-io/n8n/releases/latest | grep 
 if [ "$CURRENT" = "$LATEST" ]; then
   echo "✅ У вас уже последняя версия n8n: $CURRENT"
   notify "✅ *Уже последняя версия:* $CURRENT"
-    exit 0
+  exit 0
 fi
 
 echo "🆕 Доступна новая версия: $LATEST (у вас: $CURRENT)"
 notify "🔁 *Обновляю с версии $CURRENT до $LATEST...*"
 
-# === Шаг 3. Обновление ===
+# === Шаг 3. Обновление контейнера ===
 echo "📦 Шаг 3: обновляю контейнер n8n..."
-docker compose stop n8n
-docker compose rm -f n8n
-docker compose build --no-cache n8n
-docker compose up -d n8n
+docker compose stop n8n-app
+docker compose rm -f n8n-app
+docker compose build --no-cache n8n-app
+docker compose up -d n8n-app
 
 # === Шаг 4. Проверка статуса ===
 echo "🩺 Шаг 4: проверка статуса контейнера..."
 sleep 5
-docker ps | grep n8n
+docker ps | grep n8n-app
 
 # === Шаг 5. Проверка версии ===
 echo "🔎 Шаг 5: проверка обновлённой версии..."
 NEW_VERSION=$(docker exec n8n-app n8n --version)
 echo "🆗 Новая версия: $NEW_VERSION"
 
-# === Шаг 6. Очистка ===
+# === Шаг 6. Очистка системы ===
 echo "🧹 Шаг 6: начинаю очистку системы..."
 notify "🧹 *Шаг 6:* очищаю систему от мусора..."
 
@@ -92,21 +92,10 @@ docker volume prune -f
 docker system df
 df -h | sed -n '1,5p'
 
+# === Шаг 7. Запуск Telegram-бота ===
+echo "🤖 Шаг 7: запускаю Telegram-бота..."
+nohup node "$BASE_DIR/bot/bot.js" > "$BASE_DIR/logs/bot.log" 2>&1 &
+
 # === Завершение ===
 echo "✅ Обновление и очистка завершены! ($(date))"
 notify "✅ *Обновление завершено!*\nТеперь установлена версия: *$NEW_VERSION*"
-
-echo "🤖 Перезапускаю Telegram-бота..."
-
-cd "$BASE_DIR"
-set -a
-source .env
-set +a
-nohup node ./bot/bot.js > ./logs/bot.log 2>&1 &
-
-sleep 2
-if ps aux | grep -v grep | grep -q "bot.js"; then
-  echo "✅ Бот успешно запущен."
-else
-  echo "❌ Бот не запустился. Проверь лог: $BASE_DIR/logs/bot.log"
-fi

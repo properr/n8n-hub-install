@@ -1,10 +1,18 @@
-# Базовый образ n8n (на Alpine)
 FROM n8nio/n8n:latest
 
-# Переключаемся на root
+# Работать под root для установки пакетов
 USER root
 
-# Установка системных пакетов через apk
+# Зафиксировать репозитории Alpine на стабильный v3.22 (убираем edge), обновить индексы
+RUN set -eux; \
+  printf '%s\n' \
+    "https://dl-cdn.alpinelinux.org/alpine/v3.22/main" \
+    "https://dl-cdn.alpinelinux.org/alpine/v3.22/community" \
+    > /etc/apk/repositories; \
+  apk update; \
+  apk upgrade --no-cache
+
+# Системные пакеты (убрали ТОЛЬКО openssl-dev, остальное оставил безопасно)
 RUN apk add --no-cache \
   bash \
   curl \
@@ -15,9 +23,11 @@ RUN apk add --no-cache \
   python3 \
   py3-pip \
   libffi-dev \
-  openssl-dev \
   yt-dlp \
   apache2-utils
+
+# Немного ускорим npm
+RUN npm config set fund false && npm config set audit false
 
 # Установка pip-библиотек
 RUN for lib in \
@@ -26,11 +36,11 @@ RUN for lib in \
     requests \
     beautifulsoup4 \
     lxml \
-    ; do \
-  echo "📦 pip install $lib" && pip install "$lib" || echo "⚠️ pip: $lib не встал, продолжаем..."; \
-done
+  ; do \
+    echo "📦 pip install $lib" && pip install --no-cache-dir "$lib" || echo "⚠️ pip: $lib не встал, продолжаем..."; \
+  done
 
-# Установка npm-библиотек глобально
+# Установка npm-библиотек глобально (оставил как у тебя)
 RUN for pkg in \
     axios \
     node-fetch \
@@ -70,12 +80,12 @@ RUN for pkg in \
     node-downloader-helper \
     adm-zip \
     archiver \
-    ; do \
-  echo "🔧 Устанавливаем $pkg..." && npm install -g "$pkg" || echo "⚠️ Не удалось установить $pkg, продолжаем..."; \
-done
+  ; do \
+    echo "🔧 Устанавливаем $pkg..." && npm install -g "$pkg" || echo "⚠️ Не удалось установить $pkg, продолжаем..."; \
+  done
 
-# Установка oauth-1.0a локально, чтобы было доступно в Code-нодах
+# Локально — для доступности в Code-нодах
 RUN npm install oauth-1.0a
 
-# Возвращаемся к node-пользователю
+# Вернуть непривилегированного пользователя
 USER node

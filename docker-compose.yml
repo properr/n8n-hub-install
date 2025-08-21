@@ -9,8 +9,7 @@ services:
     restart: always
     ports:
       - "5678:5678"
-    mem_limit: 2048m         # 🔒 максимум 2ГБ ОЗУ
-    mem_reservation: 1024m   # 🔹 желательно минимум 1ГБ
+
     environment:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=n8n-postgres

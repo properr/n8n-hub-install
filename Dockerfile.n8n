@@ -30,9 +30,6 @@ RUN apk add --no-cache \
 # Чуть ускорим npm
 RUN npm config set fund false && npm config set audit false
 
-# Обновим pip toolchain (важно для сборки wheels)
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-
 # Выделенный каталог с питоновскими либами — как у нас было
 RUN mkdir -p /opt/instagrapi
 

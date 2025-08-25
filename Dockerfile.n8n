@@ -29,18 +29,19 @@ RUN apk add --no-cache \
 # Немного ускорим npm
 RUN npm config set fund false && npm config set audit false
 
-# Установка pip-библиотек
+# Установка pip-библиотек (добавлен instagrapi)
 RUN for lib in \
     openai \
     numpy \
     requests \
     beautifulsoup4 \
     lxml \
+    instagrapi \
   ; do \
     echo "📦 pip install $lib" && pip install --no-cache-dir "$lib" || echo "⚠️ pip: $lib не встал, продолжаем..."; \
   done
 
-# Установка npm-библиотек глобально (оставил как у тебя)
+# Установка npm-библиотек глобально
 RUN for pkg in \
     axios \
     node-fetch \

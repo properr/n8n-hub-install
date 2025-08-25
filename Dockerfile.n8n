@@ -1,18 +1,18 @@
 FROM n8nio/n8n:latest
 
-# Работать под root для установки пакетов
+# Работаем под root для установки пакетов
 USER root
 
-# Зафиксировать репозитории Alpine на стабильный v3.22 (убираем edge), обновить индексы
+# Фикс репозитория Alpine + обновления
 RUN set -eux; \
   printf '%s\n' \
     "https://dl-cdn.alpinelinux.org/alpine/v3.22/main" \
     "https://dl-cdn.alpinelinux.org/alpine/v3.22/community" \
-    > /etc/apk/repositories; \
+  > /etc/apk/repositories; \
   apk update; \
   apk upgrade --no-cache
 
-# Системные пакеты (убрали ТОЛЬКО openssl-dev, остальное оставил безопасно)
+# Системные пакеты (добавил ffmpeg для moviepy)
 RUN apk add --no-cache \
   bash \
   curl \
@@ -24,24 +24,35 @@ RUN apk add --no-cache \
   py3-pip \
   libffi-dev \
   yt-dlp \
-  apache2-utils
+  apache2-utils \
+  ffmpeg
 
-# Немного ускорим npm
+# Чуть ускорим npm
 RUN npm config set fund false && npm config set audit false
 
-# Установка pip-библиотек (добавлен instagrapi)
-RUN for lib in \
-    openai \
-    numpy \
-    requests \
-    beautifulsoup4 \
-    lxml \
-    instagrapi \
-  ; do \
-    echo "📦 pip install $lib" && pip install --no-cache-dir "$lib" || echo "⚠️ pip: $lib не встал, продолжаем..."; \
-  done
+# Обновим pip toolchain (важно для сборки wheels)
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Установка npm-библиотек глобально
+# Выделенный каталог с питоновскими либами — как у нас было
+RUN mkdir -p /opt/instagrapi
+
+# Ставим питон-библиотеки ровно туда (как в удачной схеме)
+RUN pip install --no-cache-dir --target=/opt/instagrapi \
+    "instagrapi==2.1.5" \
+    "requests>=2.31.0" \
+    "Pillow>=8.1.1" \
+    "moviepy>=1.0.3" \
+    "typing-extensions" \
+    "pydantic<3" \
+    "pydantic-core<3"
+
+# Патч на pinned_channels_info, чтобы не падало на отсутствующем ключе
+RUN sed -i 's/data\["pinned_channels_info"\]\["pinned_channels_list"\]/data.get("pinned_channels_info", {}).get("pinned_channels_list", [])/' /opt/instagrapi/instagrapi/extractors.py || true
+
+# PYTHONPATH чтобы /opt/instagrapi всегда виделся
+ENV PYTHONPATH="/opt/instagrapi:${PYTHONPATH}"
+
+# ТВОИ npm-глобалки (оставляю, как ты просил — ничего не удаляю)
 RUN for pkg in \
     axios \
     node-fetch \
@@ -88,5 +99,5 @@ RUN for pkg in \
 # Локально — для доступности в Code-нодах
 RUN npm install oauth-1.0a
 
-# Вернуть непривилегированного пользователя
+# Возвращаем пользователя node
 USER node

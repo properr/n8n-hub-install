@@ -46,9 +46,6 @@ RUN pip install --no-cache-dir --target=/opt/instagrapi \
 # Патч на pinned_channels_info, чтобы не падало на отсутствующем ключе
 RUN sed -i 's/data\["pinned_channels_info"\]\["pinned_channels_list"\]/data.get("pinned_channels_info", {}).get("pinned_channels_list", [])/' /opt/instagrapi/instagrapi/extractors.py || true
 
-# PYTHONPATH чтобы /opt/instagrapi всегда виделся
-ENV PYTHONPATH="/opt/instagrapi:${PYTHONPATH}"
-
 # ТВОИ npm-глобалки (оставляю, как ты просил — ничего не удаляю)
 RUN for pkg in \
     axios \

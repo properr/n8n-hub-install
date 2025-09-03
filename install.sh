@@ -4,7 +4,8 @@ IFS=$'\n\t'
 trap 'echo "Interrupted"; exit 1' INT TERM
 
 usage() {
-  echo "Usage: $0 --domain <DOMAIN> --email <EMAIL> [--enable-basic-auth] [--reset-acme]"
+  echo "Usage: $0 [--domain <DOMAIN>] [--email <EMAIL>] [--enable-basic-auth] [--reset-acme]"
+  echo "If --domain or --email are not provided, you will be prompted interactively."
 }
 
 DOMAIN=""
@@ -37,10 +38,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ -z "$DOMAIN" || -z "$EMAIL" ]]; then
-  usage
-  exit 1
-fi
+while [[ -z "$DOMAIN" ]]; do
+  read -rp "Domain: " DOMAIN
+done
+while [[ -z "$EMAIL" ]]; do
+  read -rp "Email: " EMAIL
+done
 
 # DNS lookup
 if command -v dig >/dev/null 2>&1; then

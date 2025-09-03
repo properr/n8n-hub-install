@@ -17,9 +17,9 @@ services:
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
       - N8N_EXPRESS_TRUST_PROXY=true
       - N8N_TRUSTED_PROXIES=*
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-false}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - WEBHOOK_URL=https://${DOMAIN}/
       - GENERIC_TIMEZONE=Asia/Yekaterinburg
@@ -35,14 +35,17 @@ services:
       - n8n-postgres
     labels:
       - "traefik.enable=true"
+      - "traefik.http.routers.n8n-web.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.n8n-web.entrypoints=web"
+      - "traefik.http.routers.n8n-web.middlewares=redirect@docker"
       - "traefik.http.routers.n8n.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.n8n.entrypoints=websecure"
+      - "traefik.http.routers.n8n.tls=true"
       - "traefik.http.routers.n8n.tls.certresolver=myresolver"
+      - "traefik.http.routers.n8n.middlewares=n8n-headers@docker"
       - "traefik.http.services.n8n.loadbalancer.server.port=5678"
       - "traefik.http.middlewares.redirect.redirectscheme.scheme=https"
       - "traefik.http.middlewares.n8n-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
-      - "traefik.http.middlewares.n8n-headers.headers.customrequestheaders.X-Forwarded-For=true"
-      - "traefik.http.routers.n8n.middlewares=redirect@docker,n8n-headers"
   n8n-postgres:
     image: postgres:15-alpine
     container_name: n8n-postgres
@@ -109,3 +112,7 @@ volumes:
   postgres_data:
   redis_data:
   traefik_letsencrypt:
+
+networks:
+  default:
+    name: n8n-install_default

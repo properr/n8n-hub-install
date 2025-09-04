@@ -24,7 +24,7 @@ RUN apk add --no-cache \
   libffi-dev \
   yt-dlp \
   apache2-utils \
-  ffmpeg \
+  ffmpeg 
 
 # ДОБАВЛЕНО: docker-cli для docker logs внутри контейнера
 RUN apk add --no-cache docker-cli

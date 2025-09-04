@@ -72,7 +72,7 @@ chmod -R 755 logs backups
 docker run --rm -v traefik_letsencrypt:/letsencrypt alpine \
   sh -lc 'mkdir -p /letsencrypt && touch /letsencrypt/acme.json && chmod 600 /letsencrypt/acme.json'
 
-### 5. Сборка кастомного образа n8n (как у тебя)
+### 5. Сборка кастомного образа n8n
 docker build -f Dockerfile.n8n -t n8n-custom:latest .
 
 ### 6. Запуск docker compose (включая Telegram-бота, traefik, postgres, redis, n8n)
@@ -114,12 +114,16 @@ else
   fi
 fi
 
-### 7. Настройка cron (как у тебя)
+### 7. Настройка cron
 echo "🔧 Устанавливаем cron-задачу на 02:00 каждый день"
-chmod +x ./backup_n8n.sh
-(crontab -l 2>/dev/null; echo "0 2 * * * /bin/bash /opt/n8n-install/backup_n8n.sh >> /opt/n8n-install/logs/backup.log 2>&1") | crontab -
+chmod +x /opt/n8n-install/backup_n8n.sh
 
-### 8. Уведомление в Telegram (как у тебя)
+# безопасное добавление задания при set -e / pipefail
+( crontab -l 2>/dev/null || true; \
+  echo "0 2 * * * /bin/bash /opt/n8n-install/backup_n8n.sh >> /opt/n8n-install/logs/backup.log 2>&1" \
+) | crontab -
+
+### 8. Уведомление в Telegram
 curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TG_USER_ID}" \
   -d text="✅ Установка n8n завершена. Домен: https://${DOMAIN}" >/dev/null 2>&1 || true

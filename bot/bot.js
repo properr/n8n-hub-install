@@ -103,7 +103,7 @@ bot.onText(/\/update/, (msg) => {
   send('🔄 Начинаю обновление n8n...');
 
   const { exec } = require('child_process');
-  exec('/bin/bash /opt/n8n-install/update_n8n.sh', (error, stdout, stderr) => {
+  exec('/bin/bash /update_n8n.sh', (error, stdout, stderr) => {
     if (error) {
       send(`❌ Обновление завершилось с ошибкой:\n${error.message}`);
       return;

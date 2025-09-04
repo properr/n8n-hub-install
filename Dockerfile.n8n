@@ -25,10 +25,11 @@ RUN apk add --no-cache \
   yt-dlp \
   apache2-utils \
   ffmpeg \
-  docker-cli
 
-# Создаём группу docker и добавляем туда пользователя node
-# (чтобы иметь доступ к /var/run/docker.sock, когда он проброшен с хоста)
+# ДОБАВЛЕНО: docker-cli для docker logs внутри контейнера
+RUN apk add --no-cache docker-cli
+
+# (опционально) Создать группу docker и добавить пользователя node
 ARG DOCKER_GID=999
 RUN set -eux; \
   addgroup -S -g ${DOCKER_GID} docker || addgroup -S docker; \

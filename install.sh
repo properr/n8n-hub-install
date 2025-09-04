@@ -1,145 +1,99 @@
-#!/usr/bin/env bash
-set -euo pipefail
-IFS=$'\n\t'
-trap 'echo "Interrupted"; exit 1' INT TERM
+#!/bin/bash
+set -e
 
-usage() {
-  echo "Usage: $0 [--domain <DOMAIN>] [--email <EMAIL>] [--enable-basic-auth] [--reset-acme]"
-  echo "If --domain or --email are not provided, you will be prompted interactively."
-}
-
-DOMAIN=""
-EMAIL=""
-ENABLE_BASIC_AUTH=false
-RESET_ACME=false
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --domain)
-      DOMAIN="$2"
-      shift 2
-      ;;
-    --email)
-      EMAIL="$2"
-      shift 2
-      ;;
-    --enable-basic-auth)
-      ENABLE_BASIC_AUTH=true
-      shift
-      ;;
-    --reset-acme)
-      RESET_ACME=true
-      shift
-      ;;
-    *)
-      usage
-      exit 1
-      ;;
-  esac
-done
-
-while [[ -z "$DOMAIN" ]]; do
-  read -rp "Domain: " DOMAIN
-done
-while [[ -z "$EMAIL" ]]; do
-  read -rp "Email: " EMAIL
-done
-
-# DNS lookup
-if command -v dig >/dev/null 2>&1; then
-  dns=$(dig @8.8.8.8 A "$DOMAIN" +short)
-else
-  dns=$(getent hosts "$DOMAIN" | awk '{print $1}')
-fi
-if [[ -z "$dns" ]]; then
-  echo "DNS lookup failed for $DOMAIN" >&2
+### Проверка прав
+if (( EUID != 0 )); then
+  echo "❗ Скрипт должен быть запущен от root: sudo bash <(curl ...)"
   exit 1
 fi
 
-# Port checks
-for port in 80 443; do
-  if lsof -i :"$port" -sTCP:LISTEN -t >/dev/null 2>&1; then
-    echo "Port $port is already in use" >&2
-    exit 1
-  fi
- done
+clear
+echo "🌐 Автоматическая установка n8n с GitHub"
+echo "----------------------------------------"
 
-# Prepare .env
-cp .env.example .env
-sed -i "s|^DOMAIN=.*|DOMAIN=${DOMAIN}|" .env
-sed -i "s|^EMAIL=.*|EMAIL=${EMAIL}|" .env
-if grep -q '^POSTGRES_PASSWORD=$' .env; then
-  sed -i "s|^POSTGRES_PASSWORD=$|POSTGRES_PASSWORD=$(openssl rand -hex 16)|" .env
-fi
-if grep -q '^N8N_ENCRYPTION_KEY=$' .env; then
-  sed -i "s|^N8N_ENCRYPTION_KEY=$|N8N_ENCRYPTION_KEY=$(openssl rand -hex 32)|" .env
-fi
-sed -i '/^# N8N_BASIC_AUTH_USER/d' .env
-sed -i '/^# N8N_BASIC_AUTH_PASSWORD/d' .env
-if $ENABLE_BASIC_AUTH; then
-  read -rp "N8N basic auth user: " N8N_BASIC_AUTH_USER
-  read -rsp "N8N basic auth password: " N8N_BASIC_AUTH_PASSWORD; echo
-  {
-    echo "N8N_BASIC_AUTH_ACTIVE=true"
-    echo "N8N_BASIC_AUTH_USER=$N8N_BASIC_AUTH_USER"
-    echo "N8N_BASIC_AUTH_PASSWORD=$N8N_BASIC_AUTH_PASSWORD"
-  } >> .env
-else
-  echo "N8N_BASIC_AUTH_ACTIVE=false" >> .env
-fi
-chmod 600 .env
+### 1. Ввод переменных
+read -p "🌐 Введите домен для n8n (например: n8n.example.com): " DOMAIN
+read -p "📧 Введите email для SSL-сертификата Let's Encrypt: " EMAIL
+read -p "🔐 Введите пароль для базы данных Postgres: " POSTGRES_PASSWORD
+read -p "🤖 Введите Telegram Bot Token: " TG_BOT_TOKEN
+read -p "👤 Введите Telegram User ID (для уведомлений): " TG_USER_ID
+read -p "👤 Введите имя пользователя для доступа к n8n: " N8N_BASIC_AUTH_USER
+read -s -p "🔑 Введите пароль для доступа к n8n: " N8N_BASIC_AUTH_PASSWORD
+echo
+read -p "🗝️  Введите ключ шифрования для n8n (Enter для генерации): " N8N_ENCRYPTION_KEY
 
-# Prepare acme.json
-if ! docker volume inspect traefik_letsencrypt >/dev/null 2>&1; then
-  docker volume create traefik_letsencrypt >/dev/null
-fi
-acme_path=$(docker volume inspect traefik_letsencrypt -f '{{ .Mountpoint }}')
-acme_file="${acme_path}/acme.json"
-if [[ ! -f "$acme_file" || $RESET_ACME == true ]]; then
-  echo '{}' > "$acme_file"
-  chmod 600 "$acme_file"
+if [ -z "$N8N_ENCRYPTION_KEY" ]; then
+  N8N_ENCRYPTION_KEY=$(openssl rand -hex 32)
+  echo "✅ Сгенерирован ключ шифрования: $N8N_ENCRYPTION_KEY"
 fi
 
-# Start services
-docker compose up -d n8n-traefik n8n
-
-# Trigger certificate request
-curl -skI "https://${DOMAIN}" >/dev/null || true
-
-echo "Waiting for certificate..."
-success=false
-for i in {1..30}; do
-  logs=$(docker logs n8n-traefik 2>&1 | tail -n 20)
-  if echo "$logs" | grep -qi 'obtained certificates'; then
-    success=true
-    break
-  fi
-  if echo "$logs" | grep -qi 'unable to obtain ACME certificate'; then
-    break
-  fi
-  sleep 3
-done
-if ! $success; then
-  echo "Certificate request may have failed. Check logs." >&2
+### 2. Установка Docker и Compose
+echo "📦 Проверка Docker..."
+if ! command -v docker &>/dev/null; then
+  curl -fsSL https://get.docker.com | sh
 fi
 
-# Verify redirect
-http_code=$(curl -sI "http://${DOMAIN}" | head -n 1 | awk '{print $2}')
-if [[ "$http_code" == "308" ]]; then
-  echo "HTTP redirect to HTTPS confirmed"
-else
-  echo "HTTP redirect check failed (expected 308, got $http_code)" >&2
+echo "📦 Проверка NPM..."
+if ! command -v npm &>/dev/null; then
+  apt update && apt install -y npm
 fi
 
-# Verify certificate issuer
-if openssl s_client -connect "${DOMAIN}:443" -servername "${DOMAIN}" -showcerts </dev/null 2>/dev/null \
-  | openssl x509 -noout -issuer | grep -qi "Let's Encrypt"; then
-  echo "Let's Encrypt certificate detected"
-else
-  echo "Certificate issuer is not Let's Encrypt" >&2
+if ! command -v docker compose &>/dev/null; then
+  curl -SL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
+  chmod +x /usr/local/bin/docker-compose
+  ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose || true
 fi
 
-echo "Done. Troubleshooting:"
-echo "- Ensure DNS A record for ${DOMAIN} points to this server"
-echo "- Verify ports 80 and 443 are open"
-echo "- Check 'docker logs n8n-traefik' for details"
+### 3. Клонирование проекта с GitHub
+echo "📥 Клонируем проект с GitHub..."
+rm -rf /opt/n8n-install
+git clone https://github.com/kalininlive/n8n-beget-install.git /opt/n8n-install
+cd /opt/n8n-install
+
+### 4. Генерация .env файлов
+cat > ".env" <<EOF
+DOMAIN=$DOMAIN
+EMAIL=$EMAIL
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+N8N_ENCRYPTION_KEY=$N8N_ENCRYPTION_KEY
+N8N_EXPRESS_TRUST_PROXY=true
+TG_BOT_TOKEN=$TG_BOT_TOKEN
+TG_USER_ID=$TG_USER_ID
+N8N_BASIC_AUTH_USER=$N8N_BASIC_AUTH_USER
+N8N_BASIC_AUTH_PASSWORD=$N8N_BASIC_AUTH_PASSWORD
+EOF
+
+cat > "bot/.env" <<EOF
+TG_BOT_TOKEN=$TG_BOT_TOKEN
+TG_USER_ID=$TG_USER_ID
+EOF
+
+chmod 600 .env bot/.env
+
+### 4.1 Создание нужных директорий и логов
+mkdir -p logs backups
+touch logs/backup.log
+chown -R 1000:1000 logs backups
+chmod -R 755 logs backups
+
+### 5. Сборка кастомного образа n8n
+docker build -f Dockerfile.n8n -t n8n-custom:latest .
+
+### 6. Запуск docker compose (включая Telegram-бота)
+docker compose up -d
+
+### 7. Настройка cron
+echo "🔧 Устанавливаем cron-задачу на 02:00 каждый день"
+chmod +x ./backup_n8n.sh
+(crontab -l 2>/dev/null; echo "0 2 * * * /bin/bash /opt/n8n-install/backup_n8n.sh >> /opt/n8n-install/logs/backup.log 2>&1") | crontab -
+
+### 8. Уведомление в Telegram
+curl -s -X POST https://api.telegram.org/bot$TG_BOT_TOKEN/sendMessage \
+  -d chat_id=$TG_USER_ID \
+  -d text="✅ Установка n8n завершена. Домен: https://$DOMAIN"
+
+### 9. Финальный вывод
+echo "📦 Активные контейнеры:"
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+echo "🎉 Готово! Открой: https://$DOMAIN"

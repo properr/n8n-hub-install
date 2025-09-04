@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.n8n
+      args:
+        DOCKER_GID: ${DOCKER_GID:-999} 
     container_name: n8n-app
     restart: always
     ports:
@@ -17,9 +19,6 @@ services:
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
       - N8N_EXPRESS_TRUST_PROXY=true
       - N8N_TRUSTED_PROXIES=*
-#      - N8N_BASIC_AUTH_ACTIVE=true
-#      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
-#      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - WEBHOOK_URL=https://${DOMAIN}/
       - GENERIC_TIMEZONE=Asia/Yekaterinburg
@@ -31,6 +30,7 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
       - ./data:/data
+      - /var/run/docker.sock:/var/run/docker.sock 
     depends_on:
       - n8n-postgres
     labels:
@@ -61,7 +61,6 @@ services:
     volumes:
       - redis_data:/data
 
-  # Единственный блок n8n-traefik с исправлениями
   n8n-traefik:
     image: traefik:2.10.4
     container_name: n8n-traefik
@@ -77,8 +76,8 @@ services:
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
-      - "--providers.docker.exposedbydefault=false"  # Отключаем автоматическое обнаружение сервисов
-      - "--providers.docker.network=n8n-install_default"  # Указываем сеть
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=n8n-install_default" 
     ports:
       - "80:80"
       - "443:443"

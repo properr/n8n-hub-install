@@ -11,7 +11,7 @@ RUN set -eux; \
   apk update; \
   apk upgrade --no-cache
 
-# Системные пакеты (ffmpeg включён)
+# Системные пакеты (ffmpeg включён) + docker-cli для docker logs внутри контейнера
 RUN apk add --no-cache \
   bash \
   curl \
@@ -24,7 +24,15 @@ RUN apk add --no-cache \
   libffi-dev \
   yt-dlp \
   apache2-utils \
-  ffmpeg
+  ffmpeg \
+  docker-cli
+
+# Создаём группу docker и добавляем туда пользователя node
+# (чтобы иметь доступ к /var/run/docker.sock, когда он проброшен с хоста)
+ARG DOCKER_GID=999
+RUN set -eux; \
+  addgroup -S -g ${DOCKER_GID} docker || addgroup -S docker; \
+  adduser node docker || true
 
 # Чуть ускорим npm
 RUN npm config set fund false && npm config set audit false

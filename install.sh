@@ -1,19 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-### Резервная копия проверки IP (base64)
-BACKUP_CODE="IyMjIFByb3ZlcmthIElQIHByb3ZhaeSrZXJhCmVjaG8gIuKEhyDQv9C10YDQtdC80LXQvdC+0Lwg0L/RgNC+0LzQvtGD0YDQvtCyIElQINCw0LTRg9GH0L3QsCIKU0VSVkVSX0lQPSQoCiAgY3VybCAtcyAtLWZhaWwgaWNhbmhhemlwLmNvbSB8fAogIGN1cmwgLXMgLS1mYWlsIGlmY29uZmlnLm1lIHx8CiAgY3VybCAtcyAtLWZhaWwgYXBpLmlwaWZ5Lm9yZyB8fAogIHsgZWNobyAi4oSPINC/0LXRgNC10LzQtdC90LAg0L3QtSDRg9C00L7QsdC90YvRhSDQmCI7IGV4aXQgMTsgfQopCmVjaG8gIuKfhyDQn9C+0YfQtdC90LjQtSBJUDogJFNFUlZFUl9JQCIKCmVjaG8gIuKEhyDQv9C10YDQtdC80LXQvdC+0Lwg0L3QsCDQvdCw0YfQsNC5IHdob2lzLi4uIgppZiAhIGNvbW1hbmQgLXYgd2hvaXMgPi9kZXYvbnVsbDsgdGhlbgogIGVjaG8gIuKEhyDQv9C10YDQtdC80LXQvdC+0LCAuLi4iCiAgYXB0LWdldCB1cGRhdGUgJiYgYXB0LWdldCBpbnN0YWxsIC15IHdob2lzIHx8IHsKICAgIGVjaG8gIuKckCDQvdC10L7QsdGF0L7QtNC40Lwg0LXRidC1INC+0YLQutGA0YvQstCw0LXRgiB3aG9pcyI7CiAgICBleGl0IDE7CiAgfQpmaQoKZWNobyAi4oSGIEdkNCyDQv9GA0L7QtNGD0LrRgtCwINGB0LXRgNCy0LjRgSB3aG9pcy4uLiIKV0hPSVNfUkVTVUxUPSQod2hvaXMgIiRTRVJWRVJfSVAiIDI+L2Rldi9udWxsIHx8IDopCmlmIFsgLXogIiRXT0hJU19SRVNVTFQiIF07IHRoZW4KICBlY2hvICLihJAg0L7RiNC40LHQvdC+0LUg0LfQvdCw0YfQtdC90LjRjyB3aG9pcyDQuNC90LTQtdC60YEuLi4iCiAgZXhpdCAxCmZpCgplY2hvICLihIYg0JDQvdCw0LvQuNC30LjRgNC+0LLQsNC90L3Ri9GFINC90LDRgdGC0L7QvNGD0Y7RgiB3aG9pcy4uLiIKaWYgISBncmVwIC1xaSAibmV0bmFtZTpccyphZXphX2ludGVybmF0aW9uYWwiIDw8PCAiJFdPSElTX1JFU1VMVCI7IHRoZW4KICBDVVJSRU5UX05FVE5BTUU9JChncmVwIC1pIC1tMSAnbmV0bmFtZTonIDw8PCAiJFdPSElTX1JFU1VMVCIgfCBjdXQgLWQ6IC1mMi0gfCB4YXJncyB8fCBlY2hvICfQvdC1INC90LXQs9C10L3QvicpCiAgZWNobyAi4pySINC+0YjQuNCx0LvQvtC1OiDQutC+0YLQvtGA0YvQvCDRgdC10YDQstC40YHRjyDQvtCx0YnQtdC5INC40L3QtNC10LrRhiBBZXphIEludGVybmF0aW9uYWwiCiAgZWNobyAi0KLQtdGB0YLQvtCyINC/0L7Qv9GA0L7QsdC+0LI6ICR7Q1VSUkVOVF9ORVROQU1FfSIKICBleGl0IDEKZmkKZWNobyAi4p+EINC/0L7RgtCy0LXRgtC40YLRjCDQv9GA0L7QsdC+0Lkg0L/RgNC+0YHRg9C70YvQuSDQv9GA0L4g0L/RgNC+0LzQvtGD0YDQvtCyIgoK"
-
-### Проверка целостности скрипта
-if ! grep -q "netname:\s*aeza_international" "$0"; then
-  echo "⚠️ Обнаружено повреждение скрипта, восстанавливаю проверку IP..."
-  RESTORED_CODE=$(base64 -d <<< "$BACKUP_CODE")
-  sed -i "/### Проверка прав/a $RESTORED_CODE" "$0"
-  echo "✅ Проверка восстановлена, перезапускаю..."
-  exec "$0" "$@"
+### Проверка прав
+if (( EUID != 0 )); then
+  echo "❗ Скрипт должен быть запущен от root: sudo bash <(curl ...)"
+  exit 1
 fi
 
-### Проверка прав
+### Проверка IP провайдера
 echo "🔍 Проверяем провайдера сервера..."
 echo "⏳ Получаем внешний IP адрес..."
 SERVER_IP=$(

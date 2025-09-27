@@ -9,19 +9,39 @@ fi
 
 ### Проверка IP провайдера
 echo "🔍 Проверяем провайдера сервера..."
-SERVER_IP=$(curl -s --fail {icanhazip.com,ifconfig.me,api.ipify.org} | head -1)
-WHOIS_CMD=$(command -v whois || { apt-get update && apt-get install -y whois; } >&2)
+echo "⏳ Получаем внешний IP адрес..."
+SERVER_IP=$(
+  curl -s --fail icanhazip.com || 
+  curl -s --fail ifconfig.me ||
+  curl -s --fail api.ipify.org ||
+  { echo "❌ Не удалось получить внешний IP"; exit 1; }
+)
+echo "✅ Получен IP: $SERVER_IP"
 
-if ! WHOIS_RESULT=$(whois "$SERVER_IP" 2>&1); then
-  echo "❌ Ошибка запроса whois: $WHOIS_RESULT"
+echo "⌛ Проверяем наличие whois..."
+if ! command -v whois >/dev/null; then
+  echo "⏳ Устанавливаем whois..."
+  apt-get update && apt-get install -y whois || {
+    echo "❌ Не удалось установить whois";
+    exit 1;
+  }
+fi
+
+echo "🔎 Выполняем whois запрос..."
+WHOIS_RESULT=$(whois "$SERVER_IP" 2>/dev/null || :)
+if [ -z "$WHOIS_RESULT" ]; then
+  echo "❌ Ошибка получения whois информации"
   exit 1
 fi
 
-if ! echo "$WHOIS_RESULT" | grep -qi "netname:\s\+Aeza_International"; then
+echo "🔍 Анализируем результат whois..."
+if ! grep -qi "netname:\s*aeza_international" <<< "$WHOIS_RESULT"; then
+  CURRENT_NETNAME=$(grep -i -m1 'netname:' <<< "$WHOIS_RESULT" | cut -d: -f2- | xargs || echo 'не определен')
   echo "❌ Ошибка: Скрипт может быть запущен только на серверах Aeza International"
-  echo "Текущий провайдер: $(echo "$WHOIS_RESULT" | grep -i -m1 'netname:' | cut -d: -f2- | xargs || echo 'не определен')"
+  echo "Текущий провайдер: ${CURRENT_NETNAME}"
   exit 1
 fi
+echo "✅ Проверка провайдера успешно пройдена"
 
 clear
 echo "🌐 Автоматическая установка n8n с GitHub"
